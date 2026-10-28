@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Freshservice Customer SLA Dashboard</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css?v=2">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">FS</span>
+      <div>
+        <p class="eyebrow">Netsync Freshservice</p>
+        <h1>Customer SLA Dashboard</h1>
+      </div>
+    </div>
+    <div class="controls">
+      <label for="period">Reporting period</label>
+      <select id="period">
+        <option value="6m">Last 6 months</option>
+        <option value="3m">Last 3 months</option>
+        <option value="60">Last 60 days</option>
+        <option value="30" selected>Last 30 days</option>
+        <option value="7">Last 7 days</option>
+      </select>
+      <label for="basis">Measure by</label>
+      <select id="basis">
+        <option value="resolution" selected>Resolution date</option>
+        <option value="creation">Creation date</option>
+      </select>
+      <button id="refresh" type="button">Refresh data</button>
+      <button id="export" class="secondary" type="button" disabled>Export CSV</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="summary-title">
+      <div>
+        <p class="eyebrow">Performance summary</p>
+        <h2 id="summary-title">Loading SLA results…</h2>
+        <p id="date-range" class="muted">Connecting securely to Freshservice.</p>
+      </div>
+      <p id="updated" class="updated"></p>
+    </section>
+
+    <div id="error" class="error" role="alert" hidden></div>
+    <div id="loading" class="loading" role="status"><span></span> Loading Freshservice ticket statistics…</div>
+
+    <section id="summary" class="summary-grid" aria-label="Overall performance summary" hidden>
+      <article class="metric primary">
+        <p>Overall SLA</p>
+        <strong id="overall-sla">—</strong>
+        <span id="overall-detail">—</span>
+      </article>
+      <article class="metric">
+        <p>First response SLA</p>
+        <strong id="response-sla">—</strong>
+        <span id="response-detail">—</span>
+      </article>
+      <article class="metric">
+        <p>Resolution SLA</p>
+        <strong id="resolution-sla">—</strong>
+        <span id="resolution-detail">—</span>
+      </article>
+      <article class="metric">
+        <p>MTTR</p>
+        <strong id="mttr">—</strong>
+        <span id="mttr-detail">Mean time to resolution</span>
+      </article>
+      <article class="metric">
+        <p id="ticket-count-label">Completed tickets</p>
+        <strong id="ticket-count">—</strong>
+        <span id="ticket-count-detail">Resolved or closed in period</span>
+      </article>
+    </section>
+
+    <section id="customer-section" class="panel" hidden>
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Customer breakdown</p>
+          <h2>SLA by customer</h2>
+        </div>
+        <label class="search-label" for="customer-search">
+          <span>Find a customer</span>
+          <input id="customer-search" type="search" placeholder="Search customers…" autocomplete="off">
+        </label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Customer</th>
+              <th scope="col" id="completed-header">Completed</th>
+              <th scope="col">Overall SLA</th>
+              <th scope="col">First response</th>
+              <th scope="col">Resolution</th>
+              <th scope="col">Avg. first response</th>
+              <th scope="col">MTTR</th>
+            </tr>
+          </thead>
+          <tbody id="customer-rows"></tbody>
+        </table>
+      </div>
+      <p id="empty" class="empty" hidden>No customers match this search.</p>
+    </section>
+  </main>
+
+  <footer>
+    SLA compliance uses Freshservice escalation flags. Customers are Freshservice departments; each ticket is attributed to its department. Use "Measure by" to count tickets by resolution date (resolved or closed in period) or by creation date (opened in period). MTTR is the mean resolution duration for tickets with available timing data.
+  </footer>
+  <script type="module" src="/app.js?v=3"></script>
+</body>
+</html>

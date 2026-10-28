@@ -1,0 +1,25 @@
+# Secrets
+.env
+dist/.env
+
+# Alert state
+.alerted_tickets.json
+
+# PyInstaller build artifacts
+build/
+dist/*.exe
+*.spec.bak
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

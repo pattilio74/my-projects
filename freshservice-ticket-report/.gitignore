@@ -1,0 +1,7 @@
+.app-profile/
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+build/

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Freshservice Team SLA Dashboard</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css?v=4">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">FS</span>
+      <div>
+        <p class="eyebrow">Netsync Freshservice</p>
+        <h1>Team SLA Dashboard</h1>
+      </div>
+    </div>
+    <div class="controls">
+      <label for="period">Reporting period</label>
+      <select id="period">
+        <option value="6m">Last 6 months</option>
+        <option value="3m">Last 3 months</option>
+        <option value="60">Last 60 days</option>
+        <option value="30" selected>Last 30 days</option>
+        <option value="7">Last 7 days</option>
+        <option value="24h">Last 24 hours</option>
+      </select>
+      <button id="refresh" type="button">Refresh data</button>
+      <button id="export" class="secondary" type="button" disabled>Export CSV</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="summary-title">
+      <div>
+        <p class="eyebrow">Performance summary</p>
+        <h2 id="summary-title">Loading SLA results…</h2>
+        <p id="date-range" class="muted">Connecting securely to Freshservice.</p>
+      </div>
+      <p id="updated" class="updated"></p>
+    </section>
+
+    <div id="error" class="error" role="alert" hidden></div>
+    <div id="loading" class="loading" role="status"><span></span> Loading Freshservice ticket statistics…</div>
+
+    <section id="summary" class="summary-grid" aria-label="Overall performance summary" hidden>
+      <article class="metric primary">
+        <p>Overall SLA</p>
+        <strong id="overall-sla">—</strong>
+        <span id="overall-detail">—</span>
+      </article>
+      <article class="metric">
+        <p>First response SLA</p>
+        <strong id="response-sla">—</strong>
+        <span id="response-detail">—</span>
+      </article>
+      <article class="metric">
+        <p>Resolution SLA</p>
+        <strong id="resolution-sla">—</strong>
+        <span id="resolution-detail">—</span>
+      </article>
+      <article class="metric">
+        <p>MTTR</p>
+        <strong id="mttr">—</strong>
+        <span id="mttr-detail">Mean time to resolution</span>
+      </article>
+      <article class="metric">
+        <p>Completed tickets</p>
+        <strong id="ticket-count">—</strong>
+        <span>Resolved or closed in period</span>
+      </article>
+    </section>
+
+    <section id="team-section" class="panel" hidden>
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Group breakdown</p>
+          <h2>Team performance</h2>
+        </div>
+        <label class="search-label" for="team-search">
+          <span>Find a team or technician</span>
+          <input id="team-search" type="search" placeholder="Search teams or technicians…" autocomplete="off">
+        </label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Team</th>
+              <th scope="col">Completed</th>
+              <th scope="col">Overall SLA</th>
+              <th scope="col">First response</th>
+              <th scope="col">Resolution</th>
+              <th scope="col">Avg. first response</th>
+              <th scope="col">MTTR</th>
+            </tr>
+          </thead>
+          <tbody id="team-rows"></tbody>
+        </table>
+      </div>
+      <p id="empty" class="empty" hidden>No teams match this search.</p>
+    </section>
+  </main>
+
+  <footer>
+    SLA compliance uses Freshservice escalation flags. MTTR is the mean resolution duration for completed tickets with available timing data.
+  </footer>
+  <script type="module" src="/app.js?v=4"></script>
+</body>
+</html>

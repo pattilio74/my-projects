@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Auto-refresh every 5 minutes -->
+  <meta http-equiv="refresh" content="300" />
+  <title>Aged Pending Tickets{% if threshold %} (&gt; {{ threshold }} days){% endif %}</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --panel-2: #273549;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --border: #334155;
+      --accent: #38bdf8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      padding: 24px 32px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    h1 { font-size: 20px; margin: 0; }
+    .meta { color: var(--muted); font-size: 13px; }
+    .container { padding: 24px 32px; }
+    .toolbar { margin-bottom: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .toolbar input {
+      background: var(--panel); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 6px 10px; width: 70px;
+    }
+    .btn {
+      background: var(--accent); color: #04212f; border: none;
+      padding: 7px 14px; border-radius: 6px; font-weight: 600; cursor: pointer;
+      text-decoration: none; display: inline-block; font-size: 13px;
+      line-height: 1.4;
+    }
+    .btn.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+    .btn.success { background: #16a34a; color: #04210f; }
+    .btn.danger { background: #dc2626; color: #fff1f2; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center; z-index: 50;
+    }
+    .modal-backdrop[hidden] { display: none; }
+    .modal {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px 24px; width: min(90vw, 480px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; }
+    .modal-head h2 { font-size: 17px; margin: 0 0 4px; }
+    .modal-close {
+      background: none; border: none; color: var(--muted);
+      font-size: 24px; line-height: 1; cursor: pointer;
+    }
+    .share-url-row { display: flex; gap: 8px; margin: 12px 0; }
+    .share-url-row input {
+      flex: 1; background: var(--bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;
+      font-family: monospace; font-size: 14px;
+    }
+    .share-note { font-size: 12px; opacity: 0.85; margin-bottom: 0; }
+    code { background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+    .toolbar .spacer { flex: 1; }
+    .banner {
+      background: var(--panel-2); border: 1px solid var(--border);
+      color: var(--text); padding: 10px 14px; border-radius: 8px;
+      margin-bottom: 16px; font-size: 13px;
+    }
+    .banner.err { background: #7f1d1d; border-color: #b91c1c; color: #fecaca; }
+    form.inline { display: inline; margin: 0; }
+    .count-pill {
+      background: var(--panel-2); color: var(--text);
+      padding: 4px 12px; border-radius: 999px; font-size: 13px;
+    }
+    .header-pills { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .count-pill.sched-on { background: #14532d; color: #bbf7d0; }
+    .stat-cards {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px; margin-bottom: 22px;
+    }
+    .stat-card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-top: 4px solid var(--border); border-radius: 10px;
+      padding: 16px 18px 18px;
+    }
+    .stat-card.b-red { border-top-color: #dc2626; }
+    .stat-card.b-orange { border-top-color: #ea8a2f; }
+    .stat-card.b-teal { border-top-color: #0d9488; }
+    .stat-label {
+      color: var(--muted); font-size: 12px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .stat-value { font-size: 34px; font-weight: 700; margin-top: 6px; }
+    table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 10px; overflow: hidden; }
+    th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 14px; }
+    th { background: var(--panel-2); color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(56, 189, 248, 0.06); }
+    td.num { font-variant-numeric: tabular-nums; }
+    .subject { max-width: 380px; }
+    .pill { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; display: inline-block; }
+    .p-Urgent { background: #7f1d1d; color: #fecaca; }
+    .p-High   { background: #7c2d12; color: #fed7aa; }
+    .p-Medium { background: #1e3a8a; color: #bfdbfe; }
+    .p-Low    { background: #14532d; color: #bbf7d0; }
+    .p-Unknown{ background: var(--panel-2); color: var(--muted); }
+    .s-Pending { background: #78350f; color: #fde68a; }
+    .s-Open    { background: #1e3a8a; color: #bfdbfe; }
+    .s-Resolved{ background: #14532d; color: #bbf7d0; }
+    .s-Closed  { background: var(--panel-2); color: var(--muted); }
+    .s-Unknown { background: var(--panel-2); color: var(--muted); }
+    .search-box {
+      background: var(--panel); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 6px 10px; min-width: 220px;
+    }
+    .search-box:focus { outline: none; border-color: var(--accent); }
+    .age-hot { color: #fca5a5; font-weight: 700; }
+    .error {
+      background: #7f1d1d; color: #fecaca; padding: 16px 20px;
+      border-radius: 8px; border: 1px solid #b91c1c; line-height: 1.5;
+    }
+    .empty { color: var(--muted); padding: 40px; text-align: center; font-size: 16px; }
+    footer { color: var(--muted); font-size: 12px; padding: 16px 32px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Aged Pending Tickets</h1>
+      <div class="meta">
+        {% if domain %}Domain: {{ domain }}.freshservice.com &middot; {% endif %}
+        {% if threshold %}Older than {{ threshold }} days &middot; {% endif %}
+        Updated {{ generated_at }}
+      </div>
+    </div>
+    <div class="header-pills">
+      {% if not error %}<span class="count-pill">{{ rows|length }} ticket{{ '' if rows|length == 1 else 's' }}</span>{% endif %}
+      {% if scheduler and scheduler.running %}
+        <span class="count-pill sched-on" title="Last run: {{ scheduler.last_run_at or 'pending' }} | {{ scheduler.last_run_message }}">
+          &#x23F1; Scheduler on &middot; every {{ scheduler.interval_minutes }}m
+        </span>
+      {% endif %}
+    </div>
+  </header>
+
+  <div class="container">
+    {% if alert_msg %}
+      <div class="banner {{ 'err' if alert_msg.startswith('error') else '' }}">{{ alert_msg }}</div>
+    {% endif %}
+
+    {% if stats and not error %}
+    <div class="stat-cards">
+      <div class="stat-card b-red">
+        <div class="stat-label">Over 3 days</div>
+        <div class="stat-value">{{ stats.over_3 }}</div>
+      </div>
+      <div class="stat-card b-orange">
+        <div class="stat-label">Over 7 days</div>
+        <div class="stat-value">{{ stats.over_7 }}</div>
+      </div>
+      <div class="stat-card b-teal">
+        <div class="stat-label">Agents with aged tickets</div>
+        <div class="stat-value">{{ stats.agents_with_aged }}</div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="toolbar">
+      <form class="inline" method="get" action="/">
+        <label for="days" class="meta">Age threshold (days):</label>
+        <input type="number" id="days" name="days" min="0" value="{{ threshold if threshold is not none else 3 }}" />
+        <button class="btn" type="submit">Apply</button>
+      </form>
+
+      {% if rows %}
+      <input type="search" id="searchBox" class="search-box" placeholder="Search agent or ticket…"
+        autocomplete="off" aria-label="Search by agent or ticket" />
+      <span class="meta" id="searchCount"></span>
+      {% endif %}
+
+      <a class="btn secondary" href="/{{ '?days=' ~ threshold if threshold is not none else '' }}">&#x21bb; Refresh</a>
+      <a class="btn secondary" href="/export.csv{{ '?days=' ~ threshold if threshold is not none else '' }}">&#x2193; Download CSV</a>
+      {% if share %}
+      <button class="btn secondary" type="button" id="shareBtn"
+        data-url="{{ share.url }}" data-user="{{ share.user }}" data-auth="{{ 'yes' if share.auth_enabled else 'no' }}">
+        &#x1F517; Share
+      </button>
+      {% endif %}
+    </div>
+
+    {% if error %}
+      <div class="error">
+        <strong>Could not load tickets.</strong><br />
+        {{ error }}
+      </div>
+    {% elif rows %}
+      <table>
+        <thead>
+          <tr>
+            <th>Ticket #</th>
+            <th>Subject</th>
+            <th>Agent</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Last Update</th>
+            <th>Days Since Last Update</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr class="ticket-row" data-search="{{ (r.ticket_number ~ ' ' ~ r.subject ~ ' ' ~ r.agent) | lower }}">
+            <td class="num">#{{ r.ticket_number }}</td>
+            <td class="subject">{{ r.subject }}</td>
+            <td>{{ r.agent }}</td>
+            <td><span class="pill p-{{ r.priority }}">{{ r.priority }}</span></td>
+            <td><span class="pill s-{{ r.status }}">{{ r.status }}</span></td>
+            <td>{{ r.last_update }}</td>
+            <td class="num {{ 'age-hot' if r.days_since_update >= 7 else '' }}">{{ r.days_since_update_display }}</td>
+          </tr>
+          {% endfor %}
+          <tr id="noMatchRow" hidden><td colspan="7" class="empty">No tickets match your search.</td></tr>
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty">🎉 No tickets older than {{ threshold }} days.</div>
+    {% endif %}
+  </div>
+
+  <footer>
+    Auto-refreshes every 5 minutes. Data pulled live from the Freshservice API v2.
+    {% if scheduler and scheduler.running %}
+      Scheduler last run: {{ scheduler.last_run_at or 'pending' }} &mdash; {{ scheduler.last_run_message or 'starting…' }}
+      (next: {{ scheduler.next_run_at or 'soon' }}).
+    {% endif %}
+  </footer>
+
+  <script>
+    (function () {
+      var box = document.getElementById('searchBox');
+      if (!box) return;
+      var rows = Array.prototype.slice.call(document.querySelectorAll('tr.ticket-row'));
+      var noMatch = document.getElementById('noMatchRow');
+      var countEl = document.getElementById('searchCount');
+      var total = rows.length;
+
+      function apply() {
+        var q = box.value.trim().toLowerCase();
+        var shown = 0;
+        for (var i = 0; i < rows.length; i++) {
+          var hay = rows[i].getAttribute('data-search') || '';
+          var match = q === '' || hay.indexOf(q) !== -1;
+          rows[i].hidden = !match;
+          if (match) shown++;
+        }
+        if (noMatch) noMatch.hidden = shown !== 0;
+        if (countEl) countEl.textContent = q === '' ? '' : (shown + ' of ' + total);
+      }
+
+      box.addEventListener('input', apply);
+      // Pressing Escape clears the search.
+      box.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { box.value = ''; apply(); }
+      });
+    })();
+  </script>
+
+  {% if share %}
+  <div id="shareModal" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+      <div class="modal-head">
+        <h2 id="shareTitle">Share this dashboard</h2>
+        <button type="button" class="modal-close" id="shareClose" aria-label="Close">&times;</button>
+      </div>
+      <p class="meta">Colleagues on your network can open this address in a browser:</p>
+      <div class="share-url-row">
+        <input type="text" id="shareUrl" readonly value="{{ share.url }}" />
+        <button type="button" class="btn" id="shareCopy">Copy</button>
+      </div>
+      <p class="meta" id="shareHint">
+        {% if share.auth_enabled %}
+          They'll be asked to log in. Username: <strong>{{ share.user }}</strong>
+          (share the password separately).
+        {% else %}
+          No login is set &mdash; anyone who can reach this address will see the data.
+          Set DASHBOARD_USER / DASHBOARD_PASSWORD to require a login.
+        {% endif %}
+      </p>
+      <p class="meta share-note">
+        This works over your local network only. If it doesn't load for others,
+        the server may need to run in <code>--serve</code> mode and be allowed
+        through the firewall.
+      </p>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var btn = document.getElementById('shareBtn');
+      var modal = document.getElementById('shareModal');
+      if (!btn || !modal) return;
+      var closeBtn = document.getElementById('shareClose');
+      var copyBtn = document.getElementById('shareCopy');
+      var urlInput = document.getElementById('shareUrl');
+
+      function open() { modal.hidden = false; urlInput.focus(); urlInput.select(); }
+      function close() { modal.hidden = true; }
+
+      btn.addEventListener('click', open);
+      closeBtn.addEventListener('click', close);
+      modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+
+      copyBtn.addEventListener('click', function () {
+        urlInput.select();
+        var done = function () { copyBtn.textContent = 'Copied!'; setTimeout(function () { copyBtn.textContent = 'Copy'; }, 1500); };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(urlInput.value).then(done, function () { document.execCommand('copy'); done(); });
+        } else {
+          document.execCommand('copy');
+          done();
+        }
+      });
+    })();
+  </script>
+  {% endif %}
+</body>
+</html>
