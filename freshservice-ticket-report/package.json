@@ -1,0 +1,23 @@
+{
+  "name": "freshservice-ticket-report",
+  "version": "1.0.0",
+  "description": "Web app and CLI reporting active Freshservice ticket counts, details, and team SLA metrics.",
+  "type": "module",
+  "main": "server.mjs",
+  "bin": {
+    "fs-ticket-report": "index.mjs"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "serve": "node server.mjs",
+    "app": "node launch-app.mjs",
+    "stop": "node stop-app.mjs",
+    "report": "node index.mjs",
+    "csv": "node index.mjs --csv",
+    "json": "node index.mjs --json"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

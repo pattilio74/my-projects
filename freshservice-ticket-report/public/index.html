@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Freshservice Ticket Report</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --panel-2: #273449;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --border: #334155;
+      --accent: #38bdf8;
+      --open: #f59e0b;
+      --pending: #a78bfa;
+      --assigned: #22d3ee;
+      --working: #60a5fa;
+      --scheduled: #f472b6;
+      --total: #34d399;
+      --low: #64748b;
+      --medium: #38bdf8;
+      --high: #fb923c;
+      --urgent: #f87171;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    header { padding: 24px 32px 8px; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .sub { color: var(--muted); font-size: 13px; }
+    main { padding: 16px 32px 48px; max-width: 1100px; }
+
+    .cards { display: flex; gap: 12px; flex-wrap: wrap; margin: 20px 0; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      min-width: 110px;
+    }
+    .card .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+    .card .value { font-size: 26px; font-weight: 700; margin-top: 2px; }
+    .card.open .value { color: var(--open); }
+    .card.pending .value { color: var(--pending); }
+    .card.assigned .value { color: var(--assigned); }
+    .card.working .value { color: var(--working); }
+    .card.scheduled .value { color: var(--scheduled); }
+    .card.total .value { color: var(--total); }
+    .card.customers .value { color: var(--accent); }
+    .card.low .value { color: var(--low); }
+    .card.medium .value { color: var(--medium); }
+    .card.high .value { color: var(--high); }
+    .card.urgent .value { color: var(--urgent); }
+    .cards h2 { width: 100%; margin: 8px 0 0; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+
+    .table-wrap { overflow-x: auto; }
+    .ticket-summary-table { min-width: 1320px; }
+
+    .toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 16px 0; }
+    input[type="search"] {
+      background: var(--panel); border: 1px solid var(--border); color: var(--text);
+      padding: 9px 12px; border-radius: 8px; font-size: 14px; min-width: 220px;
+    }
+    button {
+      background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+      padding: 9px 14px; border-radius: 8px; font-size: 14px; cursor: pointer;
+    }
+    button:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); color: #04283a; border-color: var(--accent); font-weight: 600; }
+    a.btn { text-decoration: none; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th {
+      font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+      color: var(--muted); cursor: pointer; user-select: none; white-space: nowrap;
+    }
+    th.num, td.num { text-align: right; }
+    th:hover { color: var(--text); }
+    th .arrow { font-size: 10px; opacity: .8; }
+    tbody tr.main { cursor: pointer; }
+    tbody tr.main:hover { background: rgba(56,189,248,.06); }
+    td.open { color: var(--open); font-weight: 600; }
+    td.pending { color: var(--pending); font-weight: 600; }
+    td.assigned { color: var(--assigned); font-weight: 600; }
+    td.working { color: var(--working); font-weight: 600; }
+    td.scheduled { color: var(--scheduled); font-weight: 600; }
+    td.total { color: var(--total); font-weight: 700; }
+    td.p-low { color: var(--low); }
+    td.p-medium { color: var(--medium); }
+    td.p-high { color: var(--high); font-weight: 600; }
+    td.p-urgent { color: var(--urgent); font-weight: 700; }
+    tfoot td { font-weight: 700; border-top: 2px solid var(--border); }
+    .caret { display: inline-block; width: 12px; color: var(--muted); transition: transform .15s; }
+    tr.expanded .caret { transform: rotate(90deg); }
+
+    .tickets-cell { background: rgba(15,23,42,.6); padding: 12px 16px 16px 40px; }
+    .tickets-cell .title { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+    .ticket-list { display: flex; flex-direction: column; gap: 2px; }
+    .ticket-row {
+      display: grid;
+      grid-template-columns: 12px 72px 120px minmax(180px, 1fr) 105px minmax(130px, 180px) 60px 52px 120px;
+      align-items: center; gap: 10px;
+      padding: 5px 8px; border-radius: 6px; font-size: 13px;
+    }
+    .ticket-header {
+      display: grid;
+      grid-template-columns: 12px 72px 120px minmax(180px, 1fr) 105px minmax(130px, 180px) 60px 52px 120px;
+      gap: 10px; padding: 0 8px 5px;
+      color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .ticket-row:hover { background: rgba(56,189,248,.06); }
+    .tr-dot { width: 9px; height: 9px; border-radius: 50%; }
+    .tr-dot.low { background: var(--low); }
+    .tr-dot.medium { background: var(--medium); }
+    .tr-dot.high { background: var(--high); }
+    .tr-dot.urgent { background: var(--urgent); }
+    .tr-id { color: var(--accent); text-decoration: none; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .tr-id:hover { text-decoration: underline; }
+    .tr-customer { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tr-status { color: var(--muted); }
+    .tr-status.open { color: var(--open); }
+    .tr-status.pending { color: var(--pending); }
+    .tr-status.assigned { color: var(--assigned); }
+    .tr-status.work-in-progress { color: var(--working); }
+    .tr-status.scheduled { color: var(--scheduled); }
+    .tr-pending-reason { color: var(--pending); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tr-priority { text-align: right; }
+    .tr-priority.low { color: var(--low); }
+    .tr-priority.medium { color: var(--medium); }
+    .tr-priority.high { color: var(--high); }
+    .tr-priority.urgent { color: var(--urgent); font-weight: 600; }
+    .tr-age { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .tr-agent { color: var(--accent); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tr-group { color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    td.agents-col { color: var(--accent); font-size: 13px; font-weight: 600; min-width: 160px; max-width: 220px; }
+    td.groups-col { color: var(--muted); font-size: 13px; max-width: 220px; }
+    .card.group .value { color: var(--accent); }
+    /* Age heat: newer neutral, older warmer. */
+    .age-new { color: var(--muted); }
+    .age-mid { color: var(--high); }
+    .age-old { color: var(--urgent); font-weight: 600; }
+    @media (max-width: 720px) {
+      .ticket-header { display: none; }
+      .ticket-row { grid-template-columns: 12px 70px minmax(100px, 130px) 1fr 60px; }
+      .ticket-row .tr-status, .ticket-row .tr-pending-reason, .ticket-row .tr-priority, .ticket-row .tr-group { display: none; }
+    }
+
+    .status { color: var(--muted); font-size: 13px; margin: 12px 0; }
+    .error { color: #f87171; }
+    .spinner {
+      display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite;
+      vertical-align: -2px; margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hint { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Freshservice Ticket Report</h1>
+    <div class="sub">Active tickets per customer — status, priority, agents, groups, ticket numbers, customer names and age</div>
+  </header>
+  <main>
+    <div class="cards">
+      <div class="card open"><div class="label">Open</div><div class="value" id="sumOpen">–</div></div>
+      <div class="card pending"><div class="label">Pending</div><div class="value" id="sumPending">–</div></div>
+      <div class="card assigned"><div class="label">Assigned</div><div class="value" id="sumAssigned">–</div></div>
+      <div class="card working"><div class="label">Work in Progress</div><div class="value" id="sumWorkInProgress">–</div></div>
+      <div class="card scheduled"><div class="label">Scheduled</div><div class="value" id="sumScheduled">–</div></div>
+      <div class="card total"><div class="label">Total active</div><div class="value" id="sumTotal">–</div></div>
+      <div class="card customers"><div class="label">Agents</div><div class="value" id="sumAgents">–</div></div>
+      <h2>By priority</h2>
+      <div class="card low"><div class="label">Low</div><div class="value" id="sumLow">–</div></div>
+      <div class="card medium"><div class="label">Medium</div><div class="value" id="sumMedium">–</div></div>
+      <div class="card high"><div class="label">High</div><div class="value" id="sumHigh">–</div></div>
+      <div class="card urgent"><div class="label">Urgent</div><div class="value" id="sumUrgent">–</div></div>
+    </div>
+
+    <div class="cards" id="groupCards">
+      <h2>Tickets by group</h2>
+      <div class="card group" id="groupTotalCard"><div class="label">All groups</div><div class="value" id="sumGroupTotal">–</div></div>
+    </div>
+
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="Filter by customer..." />
+      <button class="primary" id="refresh">Refresh</button>
+      <a class="btn" href="/api/report.csv"><button>Download CSV (per ticket)</button></a>
+      <a class="btn" href="/api/report.summary.csv"><button>Download summary CSV</button></a>
+    </div>
+    <p class="hint">Click a customer row to see its tickets (number, customer, status, pending reason, priority, age, agent, and group). Ticket numbers link to Freshservice.</p>
+
+    <div class="status" id="status"></div>
+
+    <div class="table-wrap">
+    <table class="ticket-summary-table">
+      <thead>
+        <tr>
+          <th data-key="customer">Customer <span class="arrow"></span></th>
+          <th data-key="agentCount">Assigned agents <span class="arrow"></span></th>
+          <th class="num" data-key="open">Open <span class="arrow"></span></th>
+          <th class="num" data-key="pending">Pending <span class="arrow"></span></th>
+          <th class="num" data-key="assigned">Assigned <span class="arrow"></span></th>
+          <th class="num" data-key="workInProgress">Work in Progress <span class="arrow"></span></th>
+          <th class="num" data-key="scheduled">Scheduled <span class="arrow"></span></th>
+          <th class="num" data-key="Low">Low <span class="arrow"></span></th>
+          <th class="num" data-key="Medium">Med <span class="arrow"></span></th>
+          <th class="num" data-key="High">High <span class="arrow"></span></th>
+          <th class="num" data-key="Urgent">Urgent <span class="arrow"></span></th>
+          <th class="num" data-key="total">Total <span class="arrow"></span></th>
+          <th class="num" data-key="oldestAgeDays">Oldest <span class="arrow"></span></th>
+          <th data-key="groupCount">Groups <span class="arrow"></span></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+      <tfoot>
+        <tr>
+          <td>Total (filtered)</td>
+          <td></td>
+          <td class="num" id="footOpen">0</td>
+          <td class="num" id="footPending">0</td>
+          <td class="num" id="footAssigned">0</td>
+          <td class="num" id="footWorkInProgress">0</td>
+          <td class="num" id="footScheduled">0</td>
+          <td class="num" id="footLow">0</td>
+          <td class="num" id="footMedium">0</td>
+          <td class="num" id="footHigh">0</td>
+          <td class="num" id="footUrgent">0</td>
+          <td class="num" id="footTotal">0</td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>
+  </main>
+
+  <script>
+    const state = { rows: [], sortKey: "total", sortDir: -1, filter: "", domain: "", expanded: new Set() };
+    const $ = (id) => document.getElementById(id);
+
+    function setStatus(html, isError = false) {
+      const el = $("status");
+      el.innerHTML = html;
+      el.className = "status" + (isError ? " error" : "");
+    }
+
+    async function load(force = false) {
+      setStatus('<span class="spinner"></span>Loading data from Freshservice...');
+      $("refresh").disabled = true;
+      try {
+        const res = await fetch("/api/report" + (force ? "?refresh=1" : ""));
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        state.rows = data.rows;
+        state.domain = data.domain || "";
+        $("sumOpen").textContent = data.totals.open;
+        $("sumPending").textContent = data.totals.pending;
+        $("sumAssigned").textContent = data.totals.assigned;
+        $("sumWorkInProgress").textContent = data.totals.workInProgress;
+        $("sumScheduled").textContent = data.totals.scheduled;
+        $("sumTotal").textContent = data.totals.total;
+        $("sumAgents").textContent = (data.agentCount ?? 0).toLocaleString();
+        $("sumLow").textContent = data.totals.priority.Low;
+        $("sumMedium").textContent = data.totals.priority.Medium;
+        $("sumHigh").textContent = data.totals.priority.High;
+        $("sumUrgent").textContent = data.totals.priority.Urgent;
+        renderPendingReasonCards(data.pendingReasonSummary || [], data.totals.pending);
+        renderGroupCards(data.groupSummary || [], data.totals.total);
+        const when = new Date(data.generatedAt).toLocaleString();
+        setStatus(`Showing ${state.rows.length} customers with active tickets. Generated ${when}.`);
+        render();
+      } catch (err) {
+        setStatus("Failed to load: " + err.message, true);
+      } finally {
+        $("refresh").disabled = false;
+      }
+    }
+
+    function getVal(row, key) {
+      if (key === "Low" || key === "Medium" || key === "High" || key === "Urgent") return row.priority[key];
+      if (key === "agentCount") return row.agents.length;
+      if (key === "groupCount") return row.groups.length;
+      if (key === "oldestAgeDays") return row.oldestAgeDays ?? -1;
+      return row[key];
+    }
+
+    function renderPendingReasonCards(pendingReasonSummary, total) {
+      let container = $("pendingReasonCards");
+      if (!container) {
+        container = document.createElement("div");
+        container.className = "cards";
+        container.id = "pendingReasonCards";
+        container.innerHTML =
+          '<h2>Pending reasons</h2>' +
+          '<div class="card pending"><div class="label">All pending</div><div class="value" id="sumPendingReasonTotal">–</div></div>';
+        $("groupCards").before(container);
+      }
+
+      container.querySelectorAll(".card.pending.dynamic").forEach((el) => el.remove());
+      $("sumPendingReasonTotal").textContent = total;
+      for (const reason of pendingReasonSummary) {
+        const card = document.createElement("div");
+        card.className = "card pending dynamic";
+        card.innerHTML = `<div class="label">${escapeHtml(reason.name)}</div><div class="value">${reason.count}</div>`;
+        container.appendChild(card);
+      }
+    }
+
+    function renderGroupCards(groupSummary, total) {
+      const container = $("groupCards");
+      // Keep the heading and the "All groups" total card; rebuild the rest.
+      container.querySelectorAll(".card.group.dynamic").forEach((el) => el.remove());
+      $("sumGroupTotal").textContent = total;
+      for (const g of groupSummary) {
+        const card = document.createElement("div");
+        card.className = "card group dynamic";
+        card.innerHTML = `<div class="label">${escapeHtml(g.name)}</div><div class="value">${g.count}</div>`;
+        container.appendChild(card);
+      }
+    }
+
+    function ageClass(days) {
+      if (days == null) return "";
+      if (days >= 30) return "age-old";
+      if (days >= 7) return "age-mid";
+      return "age-new";
+    }
+
+    function fmtAge(days) {
+      if (days == null) return "–";
+      if (days === 0) return "today";
+      return days + "d";
+    }
+
+    function render() {
+      const f = state.filter.trim().toLowerCase();
+      let rows = state.rows.filter((r) => !f || r.customer.toLowerCase().includes(f));
+
+      const { sortKey, sortDir } = state;
+      rows = [...rows].sort((a, b) => {
+        let av = getVal(a, sortKey), bv = getVal(b, sortKey);
+        if (typeof av === "string") return av.localeCompare(bv) * sortDir;
+        return (av - bv) * sortDir;
+      });
+
+      const tbody = $("tbody");
+      tbody.innerHTML = "";
+      let fo = 0, fp = 0, fa = 0, fw = 0, fs = 0, ft = 0, fl = 0, fm = 0, fh = 0, fu = 0;
+      for (const r of rows) {
+        fo += r.open; fp += r.pending; fa += r.assigned; fw += r.workInProgress; fs += r.scheduled; ft += r.total;
+        fl += r.priority.Low; fm += r.priority.Medium; fh += r.priority.High; fu += r.priority.Urgent;
+
+        const id = String(r.customerId ?? "unassigned");
+        const isOpen = state.expanded.has(id);
+        const tr = document.createElement("tr");
+        tr.className = "main" + (isOpen ? " expanded" : "");
+        tr.innerHTML =
+          `<td><span class="caret">▶</span> ${escapeHtml(r.customer)}</td>` +
+          `<td class="agents-col">${escapeHtml(r.agents.join(", "))}</td>` +
+          `<td class="num open">${r.open}</td>` +
+          `<td class="num pending">${r.pending}</td>` +
+          `<td class="num assigned">${r.assigned}</td>` +
+          `<td class="num working">${r.workInProgress}</td>` +
+          `<td class="num scheduled">${r.scheduled}</td>` +
+          `<td class="num p-low">${r.priority.Low}</td>` +
+          `<td class="num p-medium">${r.priority.Medium}</td>` +
+          `<td class="num p-high">${r.priority.High}</td>` +
+          `<td class="num p-urgent">${r.priority.Urgent}</td>` +
+          `<td class="num total">${r.total}</td>` +
+          `<td class="num ${ageClass(r.oldestAgeDays)}">${fmtAge(r.oldestAgeDays)}</td>` +
+          `<td class="groups-col">${escapeHtml(r.groups.join(", "))}</td>`;
+        tr.addEventListener("click", () => {
+          if (state.expanded.has(id)) state.expanded.delete(id);
+          else state.expanded.add(id);
+          render();
+        });
+        tbody.appendChild(tr);
+
+        if (isOpen) {
+          const detail = document.createElement("tr");
+          const td = document.createElement("td");
+          td.colSpan = 14;
+          td.className = "tickets-cell";
+          td.innerHTML =
+            `<div class="title">${r.tickets.length} ticket${r.tickets.length === 1 ? "" : "s"}</div>` +
+            `<div class="ticket-header">` +
+              `<span></span><span>Ticket</span><span>Assigned agent</span><span>Customer</span><span>Status</span>` +
+              `<span>Pending reason</span><span>Priority</span><span>Age</span><span>Group</span>` +
+            `</div>` +
+            `<div class="ticket-list">${r.tickets.map((ticket) => ticketRow(ticket, r.customer)).join("")}</div>`;
+          detail.appendChild(td);
+          tbody.appendChild(detail);
+        }
+      }
+      $("footOpen").textContent = fo;
+      $("footPending").textContent = fp;
+      $("footAssigned").textContent = fa;
+      $("footWorkInProgress").textContent = fw;
+      $("footScheduled").textContent = fs;
+      $("footLow").textContent = fl;
+      $("footMedium").textContent = fm;
+      $("footHigh").textContent = fh;
+      $("footUrgent").textContent = fu;
+      $("footTotal").textContent = ft;
+      updateArrows();
+    }
+
+    function ticketStatusClass(status) {
+      return String(status).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    }
+
+    function ticketRow(t, customer) {
+      const cls = t.priority.toLowerCase();
+      const statusClass = ticketStatusClass(t.status);
+      const href = state.domain ? `${state.domain}/a/tickets/${t.id}` : "#";
+      const target = state.domain ? ` target="_blank" rel="noopener"` : "";
+      const ageTitle = t.createdAt ? `Created ${new Date(t.createdAt).toLocaleString()}` : "Unknown creation date";
+      return `<div class="ticket-row">` +
+             `<span class="tr-dot ${cls}" title="${t.priority} priority"></span>` +
+             `<a class="tr-id"${target} href="${href}">#${t.id}</a>` +
+             `<span class="tr-agent" title="Assigned agent">${escapeHtml(t.agent)}</span>` +
+             `<span class="tr-customer" title="${escapeHtml(customer)}">${escapeHtml(customer)}</span>` +
+             `<span class="tr-status ${statusClass}">${escapeHtml(t.status)}</span>` +
+             `<span class="tr-pending-reason" title="${escapeHtml(t.pendingReason)}">${escapeHtml(t.pendingReason)}</span>` +
+             `<span class="tr-priority ${cls}">${t.priority}</span>` +
+             `<span class="tr-age ${ageClass(t.ageDays)}" title="${ageTitle}">${fmtAge(t.ageDays)}</span>` +
+             `<span class="tr-group" title="Group">${escapeHtml(t.group)}</span>` +
+             `</div>`;
+    }
+
+    function updateArrows() {
+      document.querySelectorAll("th[data-key]").forEach((th) => {
+        const arrow = th.querySelector(".arrow");
+        arrow.textContent = th.dataset.key === state.sortKey ? (state.sortDir === 1 ? "▲" : "▼") : "";
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    document.querySelectorAll("th[data-key]").forEach((th) => {
+      th.addEventListener("click", () => {
+        const key = th.dataset.key;
+        if (state.sortKey === key) state.sortDir *= -1;
+        else { state.sortKey = key; state.sortDir = key === "customer" ? 1 : -1; }
+        render();
+      });
+    });
+
+    $("search").addEventListener("input", (e) => { state.filter = e.target.value; render(); });
+    $("refresh").addEventListener("click", () => load(true));
+
+    load();
+  </script>
+</body>
+</html>
